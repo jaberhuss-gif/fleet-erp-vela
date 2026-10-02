@@ -44,6 +44,26 @@ app.get('/api/health', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.get('/api/debug/work-orders-columns', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'work_orders'
+      ORDER BY ordinal_position
+    `);
+
+    res.json({
+      count: result.rows.length,
+      columns: result.rows
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
 
 // ========== المواقع ==========
 app.get('/api/buildings/sites', async (req, res) => {
