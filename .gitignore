@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+build/
+client/dist/
+
+# Database scripts (local only)
+check-*.js
+fix-*.js
+list-*.js
+find-*.js
+inspect-*.js
+migrate-*.js
+sync-*.js
+delete-*.js
+link-*.js
+count-*.js
+compare-*.js
+alter-*.js
+calc-*.js
+reset-*.js
+confirm-*.js
+add-*.js
+seed.sql
+schema*.sql
+
+# Backups
+*.backup
+*.backup-*
+*.bak
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+# Additional
+check.js
+update-wo.js
+*.txt
+vite-error.txt
