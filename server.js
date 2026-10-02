@@ -2791,6 +2791,24 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================
+// SERVE FRONTEND (React build)
+// ============================================================
+
+
+const clientBuildPath = path.join(__dirname, 'client', 'dist');
+
+app.use(express.static(clientBuildPath));
+
+// SPA fallback — كل المسارات غير /api ترجع index.html
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
