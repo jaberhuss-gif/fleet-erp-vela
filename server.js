@@ -78,7 +78,14 @@ app.get('/api/buildings/sites', async (req, res) => {
 app.delete('/api/buildings/sites/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const check = await pool.query('SELECT COUNT(*) FROM work_orders WHERE site_id = $1', [id]);
+    const check = await pool.query(
+  `SELECT COUNT(*) 
+   FROM work_orders wo
+   WHERE wo.site = (
+     SELECT name FROM sites WHERE id = $1
+   )`,
+  [id]
+);
     if (parseInt(check.rows[0].count) > 0) {
       return res.status(400).json({ error: `Cannot delete: ${check.rows[0].count} work orders are linked to this site` });
     }
@@ -109,31 +116,97 @@ app.post('/api/buildings/sites', async (req, res) => {
 app.get('/api/buildings/work-orders', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT wo.*, s.name as site_name 
+      SELECT
+        wo.*,
+        wo.site AS site_name
       FROM work_orders wo
-      LEFT JOIN sites s ON wo.site_id = s.id
       ORDER BY wo.created_at DESC
     `);
+
     res.json(result.rows);
   } catch (err) {
+    console.error('Get Work Orders Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
 app.post('/api/buildings/work-orders', async (req, res) => {
   try {
-    const { wo_no, site_id, area, category, priority, description, assigned_to, contractor, image } = req.body;
+    const {
+      wo_no,
+      site_id,
+      area,
+      category,
+      priority,
+      description,
+      assigned_to,
+      contractor
+    } = req.body;
+
+    let siteName = null;
+
+    if (site_id) {
+      const siteResult = await pool.query(
+        `SELECT name
+         FROM sites
+         WHERE id = $1`,
+        [site_id]
+      );
+
+      if (siteResult.rows.length > 0) {
+        siteName = siteResult.rows[0].name;
+      }
+    }
+
+    const contractorName =
+      contractor && String(contractor).trim()
+        ? String(contractor).trim()
+        : null;
+
+    const isContractor = contractorName ? 1 : 0;
+
     const result = await pool.query(
-      `INSERT INTO work_orders (wo_no, site_id, area, category, priority, description, assigned_to, contractor, image)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [wo_no, site_id, area, category, priority, description, assigned_to, contractor, image]
+      `INSERT INTO work_orders
+       (
+         wo_no,
+         site,
+         area,
+         category,
+         priority,
+         description,
+         assigned_to,
+         is_contractor,
+         contractor_name,
+         status,
+         reported_date,
+         created_at,
+         updated_at
+       )
+       VALUES
+       (
+         $1, $2, $3, $4, $5, $6, $7,
+         $8, $9, 'Open', CURRENT_DATE, NOW(), NOW()
+       )
+       RETURNING *`,
+      [
+        wo_no,
+        siteName,
+        area || null,
+        category || null,
+        priority || 'Normal',
+        description || null,
+        assigned_to || null,
+        isContractor,
+        contractorName
+      ]
     );
+
     res.json(result.rows[0]);
+
   } catch (err) {
+    console.error('Create Work Order Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
 // إغلاق أمر العمل
 app.put('/api/buildings/work-orders/:id/close', async (req, res) => {
   try {
@@ -141,112 +214,212 @@ app.put('/api/buildings/work-orders/:id/close', async (req, res) => {
     const { work_by, labor_cost, closing_notes } = req.body;
 
     const labor = parseFloat(labor_cost) || 0;
-    const contractorLabor = work_by === 'Contractor' ? labor : 0;
-    const companyLabor = work_by === 'Company' ? labor : 0;
+    const isContractor = work_by === 'Contractor' ? 1 : 0;
 
-    const woResult = await pool.query('SELECT wo_no FROM work_orders WHERE id = $1', [id]);
+    const woResult = await pool.query(
+      `SELECT wo_no, contractor_name
+       FROM work_orders
+       WHERE id = $1`,
+      [id]
+    );
+
     if (woResult.rows.length === 0) {
       return res.status(404).json({ error: 'Work Order not found' });
     }
+
     const woNo = woResult.rows[0].wo_no;
+    const contractorName = woResult.rows[0].contractor_name || null;
 
     const partsResult = await pool.query(
-      `SELECT 
-        COALESCE(SUM(total_cost), 0) as total,
-        COALESCE(SUM(CASE WHEN source = 'Company' THEN total_cost ELSE 0 END), 0) as company_parts,
-        COALESCE(SUM(CASE WHEN source = 'Contractor' THEN total_cost ELSE 0 END), 0) as contractor_parts
-       FROM fleet_purchases 
+      `SELECT
+        COALESCE(SUM(total_cost), 0) AS total,
+        COALESCE(
+          SUM(CASE WHEN source = 'Company' THEN total_cost ELSE 0 END), 0
+        ) AS company_parts,
+        COALESCE(
+          SUM(CASE WHEN source = 'Contractor' THEN total_cost ELSE 0 END), 0
+        ) AS contractor_parts
+       FROM fleet_purchases
        WHERE reference_id = $1`,
       [woNo]
     );
 
     const partsCost = parseFloat(partsResult.rows[0].total) || 0;
-    const companyParts = parseFloat(partsResult.rows[0].company_parts) || 0;
     const contractorParts = parseFloat(partsResult.rows[0].contractor_parts) || 0;
 
-    const companyTotal = companyLabor + companyParts;
-    const contractorTotal = contractorLabor + contractorParts;
-    const finalCost = companyTotal + contractorTotal;
+    const finalCost = labor + partsCost;
+
+    const contractorCost =
+      (isContractor ? labor : 0) + contractorParts;
 
     const result = await pool.query(
-      `UPDATE work_orders 
-       SET status = 'Closed', 
-           final_cost = $1, 
+      `UPDATE work_orders
+       SET status = 'Closed',
+           final_cost = $1,
            contractor_cost = $2,
-           work_by = $3,
-           labor_cost = $4,
-           parts_cost = $5,
-           company_labor = $6,
-           contractor_labor = $7,
-           company_total = $8,
-           contractor_total = $9,
-           closing_notes = $10, 
-           closed_at = NOW()
-       WHERE id = $11 RETURNING *`,
-      [finalCost, contractorTotal, work_by, labor, partsCost, companyLabor, contractorLabor, companyTotal, contractorTotal, closing_notes, id]
+           labor_cost = $3,
+           parts_cost = $4,
+           performed_by = $5,
+           is_contractor = $6,
+           contractor_name = $7,
+           closing_notes = $8,
+           completed_date = CURRENT_DATE,
+           updated_at = NOW()
+       WHERE id = $9
+       RETURNING *`,
+      [
+        finalCost,
+        contractorCost,
+        labor,
+        partsCost,
+        work_by || null,
+        isContractor,
+        contractorName,
+        closing_notes || null,
+        id
+      ]
     );
+
     res.json(result.rows[0]);
+
   } catch (err) {
+    console.error('Close Work Order Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
+// استيراد أوامر العمل
 // استيراد أوامر العمل
 app.post('/api/buildings/import-work-orders', async (req, res) => {
   try {
     const { rows } = req.body;
+
     if (!rows || !Array.isArray(rows)) {
       return res.status(400).json({ error: 'Invalid data format' });
     }
-    let inserted = 0, skipped = 0;
+
+    let inserted = 0;
+    let skipped = 0;
     const errors = [];
+
     for (const row of rows) {
       try {
-        const woNo = (row.wo_no || '').trim();
-        if (!woNo || woNo.toLowerCase() === 'wo no' || !woNo.toUpperCase().startsWith('WO')) {
+        const woNo = String(row.wo_no || '').trim();
+
+        if (
+          !woNo ||
+          woNo.toLowerCase() === 'wo no' ||
+          !woNo.toUpperCase().startsWith('WO')
+        ) {
           skipped++;
           continue;
         }
-        let site_id = null;
-        if (row.site && row.site.trim() !== '') {
-          const siteResult = await pool.query('SELECT id FROM sites WHERE name = $1', [row.site.trim()]);
-          if (siteResult.rows.length > 0) site_id = siteResult.rows[0].id;
-        }
-        const reportedDate = parseDate(row.reported_date) || new Date();
-        const completionDate = parseDate(row.completion_date);
+
+        const reportedDate =
+          parseDate(row.reported_date) || new Date();
+
+        const completionDate =
+          parseDate(row.completion_date);
+
+        const finalCost =
+          parseFloat(row.final_cost) || 0;
+
+        const isContractor =
+          row.contractor || row.contractor_name ? 1 : 0;
+
+        const contractorName =
+          row.contractor_name ||
+          row.contractor ||
+          null;
+
         await pool.query(
-          `INSERT INTO work_orders 
-           (wo_no, site_id, area, category, priority, description, assigned_to, status, final_cost, parts_used, closing_notes, created_at, closed_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          `INSERT INTO work_orders
+           (
+             wo_no,
+             site,
+             area,
+             category,
+             priority,
+             description,
+             assigned_to,
+             is_contractor,
+             contractor_name,
+             status,
+             reported_date,
+             completed_date,
+             final_cost,
+             parts_used,
+             closing_notes,
+             created_at,
+             updated_at
+           )
+           VALUES
+           (
+             $1, $2, $3, $4, $5, $6, $7, $8, $9,
+             $10, $11, $12, $13, $14, $15, $16, NOW()
+           )
            ON CONFLICT (wo_no) DO NOTHING`,
-          [woNo, site_id, row.area || null, row.category || null, row.priority || 'Normal',
-           row.description || null, row.assigned_to || null, row.status || 'Open',
-           parseFloat(row.final_cost) || 0, row.parts_used || null, row.closing_notes || null,
-           reportedDate, completionDate]
+          [
+            woNo,
+            row.site || null,
+            row.area || null,
+            row.category || null,
+            row.priority || 'Normal',
+            row.description || null,
+            row.assigned_to || null,
+            isContractor,
+            contractorName,
+            row.status || 'Open',
+            reportedDate,
+            completionDate,
+            finalCost,
+            row.parts_used || null,
+            row.closing_notes || null,
+            reportedDate
+          ]
         );
+
         inserted++;
+
       } catch (err) {
-        errors.push({ wo_no: row.wo_no, error: err.message });
+        errors.push({
+          wo_no: row.wo_no,
+          error: err.message
+        });
       }
     }
-    res.json({ success: true, inserted, skipped, errors });
+
+    res.json({
+      success: true,
+      inserted,
+      skipped,
+      errors
+    });
+
   } catch (err) {
+    console.error('Import Work Orders Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
 // ========== المشاريع التطويرية ==========
 app.get('/api/buildings/dev-projects', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT dp.*, s.name as site_name 
+      SELECT dp.*, s.name as site_name
       FROM development_projects dp
       LEFT JOIN sites s ON dp.site_id = s.id
       ORDER BY dp.created_at DESC
     `);
+
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('DEV PROJECTS ERROR:', err);
+    res.status(500).json({
+      error: 'Failed to load development projects',
+      details: err.message,
+      code: err.code || null,
+      detail: err.detail || null,
+      hint: err.hint || null
+    });
   }
 });
 
