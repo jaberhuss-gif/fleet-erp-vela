@@ -32,10 +32,14 @@ function parseDate(dateStr) {
   return null;
 }
 
-app.get('/', async (req, res) => {
+app.get('/api/health', async (req, res) => {
   try {
     const result = await pool.query('SELECT NOW()');
-    res.json({ status: 'OK', message: 'Fleet ERP Vela API is running', time: result.rows[0].now });
+    res.json({ 
+      status: 'OK', 
+      message: 'Fleet ERP Vela API is running', 
+      time: result.rows[0].now 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2797,17 +2801,21 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
 // SERVE FRONTEND (React build)
 // ============================================================
 
-
 const clientBuildPath = path.join(__dirname, 'client', 'dist');
 
 app.use(express.static(clientBuildPath));
 
-// SPA fallback — Express 5 compatible
 app.get(/.*/, (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
   res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
+
+// ============================================================
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
 const PORT = process.env.PORT || 4000;
