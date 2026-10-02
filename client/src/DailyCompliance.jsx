@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/daily-compliance';
+const API = '/api/fleet/daily-compliance';
 
 function DailyCompliance() {
   const [data, setData] = useState(null);
@@ -32,7 +32,7 @@ function DailyCompliance() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const res = await axios.post('http://localhost:4000/api/fleet/sync');
+      const res = await axios.post('/api/fleet/sync');
       alert(`✅ ${res.data.message}\n\nNew: ${res.data.inserted}\nSkipped: ${res.data.skipped}`);
       loadData();
     } catch (err) {

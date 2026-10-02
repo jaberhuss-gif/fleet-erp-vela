@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/stock-transactions';
-const LOCATIONS_API = 'http://localhost:4000/api/fleet/warehouse-locations';
+const API = '/api/fleet/stock-transactions';
+const LOCATIONS_API = '/api/fleet/warehouse-locations';
 
 function StockTransactions() {
   const [records, setRecords] = useState([]);
@@ -236,3 +236,4 @@ const thStyle = { padding: 10, textAlign: 'left', fontSize: 12 };
 const tdStyle = { padding: 10, textAlign: 'left', borderBottom: '1px solid #eee', fontSize: 13 };
 
 export default StockTransactions;
+

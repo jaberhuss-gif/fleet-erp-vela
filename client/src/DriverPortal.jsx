@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/driver';
+const API = '/api/driver';
 
 function DriverPortal() {
   const [phone, setPhone] = useState('');

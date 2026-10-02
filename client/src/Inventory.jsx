@@ -1,7 +1,7 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/inventory';
+const API = '/api/fleet/inventory';
 
 function Inventory() {
   const [records, setRecords] = useState([]);
@@ -268,3 +268,4 @@ const thStyle = { padding: 10, textAlign: 'left', fontSize: 12 };
 const tdStyle = { padding: 10, textAlign: 'left', borderBottom: '1px solid #eee', fontSize: 13 };
 
 export default Inventory;
+

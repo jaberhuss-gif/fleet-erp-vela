@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/periodic-maintenance';
-const VEHICLES_API = 'http://localhost:4000/api/fleet/vehicles';
+const API = '/api/fleet/periodic-maintenance';
+const VEHICLES_API = '/api/fleet/vehicles';
 
 function PeriodicMaintenance() {
   const [records, setRecords] = useState([]);
@@ -235,3 +235,4 @@ const thStyle = { padding: 12, textAlign: 'left', fontSize: 13 };
 const tdStyle = { padding: 12, textAlign: 'left', borderBottom: '1px solid #eee', fontSize: 13 };
 
 export default PeriodicMaintenance;
+

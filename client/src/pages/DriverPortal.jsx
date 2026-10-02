@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const VEHICLES_API = 'http://localhost:4000/api/vehicles/list';
-const DETAILS_API = 'http://localhost:4000/api/vehicles';
-const READING_API = 'http://localhost:4000/api/vehicles';
-const OIL_API = 'http://localhost:4000/api/vehicles';
+const VEHICLES_API = '/api/vehicles/list';
+const DETAILS_API = '/api/vehicles';
+const READING_API = '/api/vehicles';
+const OIL_API = '/api/vehicles';
 
 export default function DriverPortal({ canWork = true }) {
   const [vehicles, setVehicles] = useState([]);

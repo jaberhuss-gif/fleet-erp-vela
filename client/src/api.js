@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:4000/api/buildings';
+const API_URL = '/api/buildings';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -29,3 +29,4 @@ export const checkMonthLock = (month, year) => api.get(`/check-month-lock?month=
 
 export default api;
 export const deleteSite = (id) => api.delete(`/sites/${id}`);
+

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getMonthlyClosures, reopenMonth } from './api';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/buildings';
+const API = '/api/buildings';
 
 function Reports() {
   const [closures, setClosures] = useState([]);

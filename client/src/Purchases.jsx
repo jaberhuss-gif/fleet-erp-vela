@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/buildings';
+const API = '/api/buildings';
 
 function Purchases() {
   const [purchases, setPurchases] = useState([]);

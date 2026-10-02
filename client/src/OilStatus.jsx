@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/oil-status';
+const API = '/api/fleet/oil-status';
 
 function OilStatus() {
   const [data, setData] = useState(null);

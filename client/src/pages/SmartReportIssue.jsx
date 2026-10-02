@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { classifyIssue, getLocalized } from '../data/knowledge';
 
-const API = 'http://localhost:4000/api';
+const API = '/api';
 const LANGUAGES = [
   { code: 'en-US', label: 'English', flag: 'EN' },
   { code: 'ur-PK', label: 'اردو', flag: 'UR' },

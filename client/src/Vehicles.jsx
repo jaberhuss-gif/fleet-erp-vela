@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/vehicles';
+const API = '/api/fleet/vehicles';
 
 function Vehicles() {
   const [vehicles, setVehicles] = useState([]);

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api/fleet/km-records';
-const VEHICLES_API = 'http://localhost:4000/api/fleet/vehicles';
+const API = '/api/fleet/km-records';
+const VEHICLES_API = '/api/fleet/vehicles';
 
 function KMRecords() {
   const [records, setRecords] = useState([]);

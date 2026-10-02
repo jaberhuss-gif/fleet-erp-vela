@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:4000/api';
-const VEHICLES_API = 'http://localhost:4000/api/vehicles/list';
+const API = '/api';
+const VEHICLES_API = '/api/vehicles/list';
 
 export default function MaintenanceIssue({ canWork = true }) {
   const [vehicles, setVehicles] = useState([]);
