@@ -2802,8 +2802,8 @@ const clientBuildPath = path.join(__dirname, 'client', 'dist');
 
 app.use(express.static(clientBuildPath));
 
-// SPA fallback — كل المسارات غير /api ترجع index.html
-app.get('*', (req, res, next) => {
+// SPA fallback — Express 5 compatible
+app.get(/.*/, (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
