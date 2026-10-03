@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const path = require('path');   
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -65,7 +65,7 @@ app.get('/api/debug/work-orders-columns', async (req, res) => {
   }
 });
 
-// ========== Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ ==========
+// ========== المواقع ==========
 app.get('/api/buildings/sites', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM sites ORDER BY id');
@@ -112,14 +112,11 @@ app.post('/api/buildings/sites', async (req, res) => {
   }
 });
 
-// ========== Ø£ÙˆØ§Ù…Ø± Ø§Ù„Ø¹Ù…Ù„ ==========
+// ========== أوامر العمل ==========
 app.get('/api/buildings/work-orders', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT
-        wo.*,
-        wo.site AS site_name
-      FROM work_orders wo
+      SELECT wo.*, s.name AS site_name FROM work_orders wo LEFT JOIN sites s ON wo.site_id = s.id
       ORDER BY wo.created_at DESC
     `);
 
@@ -207,7 +204,7 @@ app.post('/api/buildings/work-orders', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Ø¥ØºÙ„Ø§Ù‚ Ø£Ù…Ø± Ø§Ù„Ø¹Ù…Ù„
+// إغلاق أمر العمل
 app.put('/api/buildings/work-orders/:id/close', async (req, res) => {
   try {
     const { id } = req.params;
@@ -287,8 +284,8 @@ app.put('/api/buildings/work-orders/:id/close', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Ø§Ø³ØªÙŠØ±Ø§Ø¯ Ø£ÙˆØ§Ù…Ø± Ø§Ù„Ø¹Ù…Ù„
-// Ø§Ø³ØªÙŠØ±Ø§Ø¯ Ø£ÙˆØ§Ù…Ø± Ø§Ù„Ø¹Ù…Ù„
+// استيراد أوامر العمل
+// استيراد أوامر العمل
 app.post('/api/buildings/import-work-orders', async (req, res) => {
   try {
     const { rows } = req.body;
@@ -400,7 +397,7 @@ app.post('/api/buildings/import-work-orders', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ========== Ø§Ù„Ù…Ø´Ø§Ø±ÙŠØ¹ Ø§Ù„ØªØ·ÙˆÙŠØ±ÙŠØ© ==========
+// ========== المشاريع التطويرية ==========
 app.get('/api/buildings/dev-projects', async (req, res) => {
   try {
     const result = await pool.query(
@@ -426,7 +423,7 @@ app.post('/api/buildings/dev-projects', async (req, res) => {
   }
 });
 
-// Ø¥ØºÙ„Ø§Ù‚ Ù…Ø´Ø±ÙˆØ¹
+// إغلاق مشروع
 app.put('/api/buildings/dev-projects/:id/close', async (req, res) => {
   try {
     const { id } = req.params;
@@ -481,7 +478,7 @@ app.put('/api/buildings/dev-projects/:id/close', async (req, res) => {
   }
 });
 
-// ========== Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ… ==========
+// ========== لوحة التحكم ==========
 app.get('/api/buildings/dashboard', async (req, res) => {
   try {
     const woCount = await pool.query('SELECT COUNT(*) FROM work_orders');
@@ -503,7 +500,7 @@ app.get('/api/buildings/dashboard', async (req, res) => {
   }
 });
 
-// ========== Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø´Ù‡Ø±ÙŠ ==========
+// ========== التقرير الشهري ==========
 app.get('/api/buildings/monthly-report', async (req, res) => {
   try {
     const { month, year } = req.query;
@@ -597,7 +594,7 @@ app.get('/api/buildings/monthly-report', async (req, res) => {
   }
 });
 
-// ========== Ø§Ø³ØªÙŠØ±Ø§Ø¯ Ø´Ø§Ù…Ù„ ==========
+// ========== استيراد شامل ==========
 app.post('/api/buildings/import-all', async (req, res) => {
   try {
     const { devProjects, purchases, devTasks, parts, siteTasks } = req.body;
@@ -703,7 +700,7 @@ app.post('/api/buildings/import-all', async (req, res) => {
   }
 });
 
-// ========== Ø¬Ù„Ø¨ Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª ==========
+// ========== جلب المشتريات ==========
 app.get('/api/buildings/purchases', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM fleet_purchases ORDER BY purchase_date DESC');
@@ -713,7 +710,7 @@ app.get('/api/buildings/purchases', async (req, res) => {
   }
 });
 
-// ========== ØªØµØ­ÙŠØ­ ØªÙˆØ§Ø±ÙŠØ® Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª ==========
+// ========== تصحيح تواريخ المشتريات ==========
 app.post('/api/buildings/fix-purchase-dates', async (req, res) => {
   try {
     const result = await pool.query(
@@ -725,7 +722,7 @@ app.post('/api/buildings/fix-purchase-dates', async (req, res) => {
   }
 });
 
-// ========== Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø´Ù‡Ø± ==========
+// ========== إغلاق الشهر ==========
 app.post('/api/buildings/close-month', async (req, res) => {
   try {
     const { month, year, notes } = req.body;
@@ -744,7 +741,7 @@ app.post('/api/buildings/close-month', async (req, res) => {
       return res.status(400).json({ error: 'This month is already closed' });
     }
 
-    // ===== Ù‡Ù„ Ø§Ù„Ø´Ù‡Ø± ÙÙŠ 7 Ø£Ùˆ 8 (Ù…Ø·Ø§Ø¨Ù‚Ø© Google Sheet) Ø£Ù… 9+ (Ø§Ù„Ù†Ø¸Ø§Ù… Ø§Ù„Ø¬Ø¯ÙŠØ¯)ØŸ =====
+    // ===== هل الشهر في 7 أو 8 (مطابقة Google Sheet) أم 9+ (النظام الجديد)؟ =====
     const useLegacyMode = (y === 2026 && (m === 7 || m === 8));
 
     let woCompanyLabor = 0, woContractorLabor = 0, woCompanyParts = 0, woContractorParts = 0;
@@ -752,7 +749,7 @@ app.post('/api/buildings/close-month', async (req, res) => {
     let woCountCompany = 0, woCountContractor = 0, devCountCompany = 0, devCountContractor = 0;
 
     if (useLegacyMode) {
-      // ===== Ø§Ù„ÙˆØ¶Ø¹ Ø§Ù„Ù‚Ø¯ÙŠÙ… (Ù…Ø·Ø§Ø¨Ù‚Ø© Google Sheet) =====
+      // ===== الوضع القديم (مطابقة Google Sheet) =====
       const woLegacy = await pool.query(
         `SELECT 
           COALESCE(SUM(final_cost), 0) as total_final_cost,
@@ -808,7 +805,7 @@ app.post('/api/buildings/close-month', async (req, res) => {
       devContractorParts = parseFloat(partsDevLegacy.rows[0].total) || 0;
 
     } else {
-      // ===== Ø§Ù„ÙˆØ¶Ø¹ Ø§Ù„Ø¬Ø¯ÙŠØ¯ (Ø§Ù„Ù†Ø¸Ø§Ù… Ø§Ù„Ø¬Ø¯ÙŠØ¯) =====
+      // ===== الوضع الجديد (النظام الجديد) =====
       const woResult = await pool.query(
         `SELECT 
           COUNT(CASE WHEN work_by = 'Company' THEN 1 END) as count_company,
@@ -936,7 +933,7 @@ app.post('/api/buildings/close-month', async (req, res) => {
   }
 });
 
-// ========== Ø¬Ù„Ø¨ Ø§Ù„Ø£Ø´Ù‡Ø± Ø§Ù„Ù…ØºÙ„Ù‚Ø© ==========
+// ========== جلب الأشهر المغلقة ==========
 app.get('/api/buildings/monthly-closures', async (req, res) => {
   try {
     const result = await pool.query(
@@ -948,7 +945,7 @@ app.get('/api/buildings/monthly-closures', async (req, res) => {
   }
 });
 
-// ========== Ø¥Ø¹Ø§Ø¯Ø© ÙØªØ­ Ø´Ù‡Ø± ==========
+// ========== إعادة فتح شهر ==========
 app.post('/api/buildings/reopen-month/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -973,7 +970,7 @@ app.post('/api/buildings/reopen-month/:id', async (req, res) => {
   }
 });
 
-// ========== Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ù‚ÙÙ„ Ø§Ù„Ø´Ù‡Ø± ==========
+// ========== التحقق من قفل الشهر ==========
 app.get('/api/buildings/check-month-lock', async (req, res) => {
   try {
     const { month, year } = req.query;
@@ -990,7 +987,7 @@ app.get('/api/buildings/check-month-lock', async (req, res) => {
   }
 });
 
-// ========== ØªÙ‚Ø±ÙŠØ± ÙØªØ±Ø© Ø²Ù…Ù†ÙŠØ© ==========
+// ========== تقرير فترة زمنية ==========
 app.get('/api/buildings/report-range', async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -1067,20 +1064,20 @@ app.get('/api/buildings/report-range', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ========== GM Dashboard (Ø¢Ø®Ø± 3 Ø£Ø´Ù‡Ø±) ==========
+// ========== GM Dashboard (آخر 3 أشهر) ==========
 app.get('/api/buildings/gm-dashboard', async (req, res) => {
   try {
-    // Ø¬Ù„Ø¨ Ø¢Ø®Ø± 3 Ø£Ø´Ù‡Ø± Ù…ØºÙ„Ù‚Ø©
+    // جلب آخر 3 أشهر مغلقة
     const closuresResult = await pool.query(
       `SELECT * FROM monthly_closures 
        ORDER BY year DESC, month DESC 
        LIMIT 3`
     );
 
-    // Ø¹ÙƒØ³ Ø§Ù„ØªØ±ØªÙŠØ¨ Ù„ÙŠØ¸Ù‡Ø± Ø§Ù„Ø£Ù‚Ø¯Ù… Ø£ÙˆÙ„Ø§Ù‹
+    // عكس الترتيب ليظهر الأقدم أولاً
     const closures = closuresResult.rows.reverse();
 
-    // Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠØ§Øª
+    // الإجماليات
     const totals = {
       wo_count_company: 0,
       wo_count_contractor: 0,
@@ -1124,7 +1121,7 @@ app.get('/api/buildings/gm-dashboard', async (req, res) => {
 // FLEET MANAGEMENT - VEHICLES
 // ============================================================
 
-// Ø¬Ù„Ø¨ ÙƒÙ„ Ø§Ù„Ø³ÙŠØ§Ø±Ø§Øª
+// جلب كل السيارات
 app.get('/api/fleet/vehicles', async (req, res) => {
   try {
     const { search } = req.query;
@@ -1151,7 +1148,7 @@ app.get('/api/fleet/vehicles', async (req, res) => {
   }
 });
 
-// Ø¬Ù„Ø¨ Ø³ÙŠØ§Ø±Ø© ÙˆØ§Ø­Ø¯Ø©
+// جلب سيارة واحدة
 app.get('/api/fleet/vehicles/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1165,7 +1162,7 @@ app.get('/api/fleet/vehicles/:id', async (req, res) => {
   }
 });
 
-// Ø¥Ø¶Ø§ÙØ© Ø³ÙŠØ§Ø±Ø© Ø¬Ø¯ÙŠØ¯Ø©
+// إضافة سيارة جديدة
 app.post('/api/fleet/vehicles', async (req, res) => {
   try {
     const {
@@ -1217,7 +1214,7 @@ app.post('/api/fleet/vehicles', async (req, res) => {
   }
 });
 
-// ØªØ¹Ø¯ÙŠÙ„ Ø³ÙŠØ§Ø±Ø©
+// تعديل سيارة
 app.put('/api/fleet/vehicles/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1290,7 +1287,7 @@ app.put('/api/fleet/vehicles/:id', async (req, res) => {
   }
 });
 
-// Ø­Ø°Ù Ø³ÙŠØ§Ø±Ø©
+// حذف سيارة
 app.delete('/api/fleet/vehicles/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1307,7 +1304,7 @@ app.delete('/api/fleet/vehicles/:id', async (req, res) => {
 // FLEET MANAGEMENT - KM RECORDS
 // ============================================================
 
-// Ø¬Ù„Ø¨ Ù‚Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ø¹Ø¯Ø§Ø¯ (Ù…Ø¹ ÙÙ„ØªØ±Ø© Ø§Ø®ØªÙŠØ§Ø±ÙŠØ©)
+// جلب قراءات العداد (مع فلترة اختيارية)
 app.get('/api/fleet/km-records', async (req, res) => {
   try {
     const { vehicle_id, plate, from_date, to_date, limit } = req.query;
@@ -1361,7 +1358,7 @@ app.get('/api/fleet/km-records', async (req, res) => {
   }
 });
 
-// Ø¬Ù„Ø¨ Ù‚Ø±Ø§Ø¡Ø© ÙˆØ§Ø­Ø¯Ø©
+// جلب قراءة واحدة
 app.get('/api/fleet/km-records/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1375,7 +1372,7 @@ app.get('/api/fleet/km-records/:id', async (req, res) => {
   }
 });
 
-// Ø¥Ø¶Ø§ÙØ© Ù‚Ø±Ø§Ø¡Ø© Ø¬Ø¯ÙŠØ¯Ø©
+// إضافة قراءة جديدة
 app.post('/api/fleet/km-records', async (req, res) => {
   try {
     const { vehicle_id, plate, reading_km, reading_date, is_oil_change, notes } = req.body;
@@ -1391,7 +1388,7 @@ app.post('/api/fleet/km-records', async (req, res) => {
       [vehicle_id, plate || null, reading_km, reading_date, is_oil_change || 0, notes || null]
     );
 
-    // ØªØ­Ø¯ÙŠØ« current_km ÙÙŠ Ø¬Ø¯ÙˆÙ„ vehicles
+    // تحديث current_km في جدول vehicles
     await pool.query(
       `UPDATE vehicles 
        SET current_km = $1, meter_updated_at = NOW() 
@@ -1405,7 +1402,7 @@ app.post('/api/fleet/km-records', async (req, res) => {
   }
 });
 
-// Ø­Ø°Ù Ù‚Ø±Ø§Ø¡Ø©
+// حذف قراءة
 app.delete('/api/fleet/km-records/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1422,20 +1419,20 @@ app.delete('/api/fleet/km-records/:id', async (req, res) => {
 // FLEET MANAGEMENT - DAILY COMPLIANCE
 // ============================================================
 
-// ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø§Ù„ÙŠÙˆÙ…ÙŠ
+// تقرير الالتزام اليومي
 app.get('/api/fleet/daily-compliance', async (req, res) => {
   try {
     const { date } = req.query;
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // 1. ÙƒÙ„ Ø§Ù„Ø³ÙŠØ§Ø±Ø§Øª
+    // 1. كل السيارات
     const vehiclesResult = await pool.query(
       `SELECT id, plate_number, plate_code, plate, make, model, driver, driver_name, phone, driver_phone, location 
        FROM vehicles 
        ORDER BY plate_number, plate_code`
     );
 
-    // 2. Ø§Ù„Ù‚Ø±Ø§Ø¡Ø§Øª ÙÙŠ Ø§Ù„ÙŠÙˆÙ… Ø§Ù„Ù…Ø­Ø¯Ø¯
+    // 2. القراءات في اليوم المحدد
     const kmResult = await pool.query(
       `SELECT DISTINCT ON (vehicle_id) 
         vehicle_id, reading_km, reading_date, created_at
@@ -1445,7 +1442,7 @@ app.get('/api/fleet/daily-compliance', async (req, res) => {
       [targetDate]
     );
 
-    // 3. Ø±Ø¨Ø· Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª
+    // 3. ربط البيانات
     const kmMap = {};
     kmResult.rows.forEach((r) => {
       kmMap[r.vehicle_id] = r;
@@ -1463,7 +1460,7 @@ app.get('/api/fleet/daily-compliance', async (req, res) => {
         plate_code: v.plate_code,
         make: v.make,
         model: v.model,
-        driver: v.driver_name || v.driver || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯',
+        driver: v.driver_name || v.driver || 'غير محدد',
         phone: v.driver_phone || v.phone || '',
         location: v.location,
         reading_km: reading ? reading.reading_km : null,
@@ -1555,7 +1552,7 @@ app.put('/api/fleet/drivers/:id', async (req, res) => {
     const { id } = req.params;
     const { name, phone, license_no, license_expiry, nationality, vehicle_id, status, notes } = req.body;
     
-    // 1. ØªØ­Ø¯ÙŠØ« Ø¬Ø¯ÙˆÙ„ drivers
+    // 1. تحديث جدول drivers
     const result = await pool.query(
       `UPDATE drivers SET
         name = $1, phone = $2, license_no = $3, license_expiry = $4,
@@ -1568,7 +1565,7 @@ app.put('/api/fleet/drivers/:id', async (req, res) => {
       return res.status(404).json({ error: 'Driver not found' });
     }
 
-    // 2. ØªØ­Ø¯ÙŠØ« Ø¬Ø¯ÙˆÙ„ vehicles Ø§Ù„Ù…Ø±ØªØ¨Ø· (Ø¥Ø°Ø§ ÙƒØ§Ù† Ù‡Ù†Ø§Ùƒ vehicle_id)
+    // 2. تحديث جدول vehicles المرتبط (إذا كان هناك vehicle_id)
     if (vehicle_id) {
       await pool.query(
         `UPDATE vehicles SET
@@ -1604,7 +1601,7 @@ app.delete('/api/fleet/drivers/:id', async (req, res) => {
 // FLEET MANAGEMENT - SYNC FROM NEON
 // ============================================================
 
-// Ø±Ø§Ø¨Ø· Neon (Ø¶Ø¹ Ø±Ø§Ø¨Ø·Ùƒ Ù‡Ù†Ø§)
+// رابط Neon (ضع رابطك هنا)
 const NEON_URL = 'postgresql://neondb_owner:npg_dynmHfhw3O1V@ep-rapid-bread-b1qjr8sh.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
 
 app.post('/api/fleet/sync', async (req, res) => {
@@ -1618,11 +1615,11 @@ app.post('/api/fleet/sync', async (req, res) => {
   try {
     await neonClient.connect();
 
-    // 1. Ø¢Ø®Ø± ID ÙÙŠ Vela
+    // 1. آخر ID في Vela
     const velaMaxResult = await pool.query('SELECT COALESCE(MAX(id), 0) as max_id FROM km_records');
     const velaMaxId = parseInt(velaMaxResult.rows[0].max_id);
 
-    // 2. Ø§Ù„ØµÙÙˆÙ Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ù…Ù† Neon
+    // 2. الصفوف الجديدة من Neon
     const neonResult = await neonClient.query(
       'SELECT * FROM km_records WHERE id > $1 ORDER BY id',
       [velaMaxId]
@@ -1632,13 +1629,13 @@ app.post('/api/fleet/sync', async (req, res) => {
       await neonClient.end();
       return res.json({
         success: true,
-        message: 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù‚Ø±Ø§Ø¡Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©',
+        message: 'لا توجد قراءات جديدة',
         inserted: 0,
         skipped: 0,
       });
     }
 
-    // 3. Ø¥Ø¯Ø®Ø§Ù„Ù‡Ø§ ÙÙŠ Vela
+    // 3. إدخالها في Vela
     let inserted = 0;
     let skipped = 0;
     const errors = [];
@@ -1662,7 +1659,7 @@ app.post('/api/fleet/sync', async (req, res) => {
 
     res.json({
       success: true,
-      message: `ØªÙ…Øª Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø© Ø¨Ù†Ø¬Ø§Ø­`,
+      message: `تمت المزامنة بنجاح`,
       inserted,
       skipped,
       errors: errors.length,
@@ -1731,7 +1728,7 @@ app.post('/api/fleet/oil-changes', async (req, res) => {
       [vehicle_id, oil_change_km, oil_change_date, changed_by || null, notes || null]
     );
 
-    // ØªØ­Ø¯ÙŠØ« last_oil_km ÙÙŠ vehicles
+    // تحديث last_oil_km في vehicles
     await pool.query(
       `UPDATE vehicles SET last_oil_km = $1, last_oil_change_date = $2, updated_at = NOW() WHERE id = $3`,
       [oil_change_km, oil_change_date, vehicle_id]
@@ -2293,7 +2290,7 @@ app.post('/api/driver/km', async (req, res) => {
       [reading_km, vehicle_id]
     );
 
-    // Log to driver_messages (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)
+    // Log to driver_messages (اختياري)
     // await pool.query(...)
 
     res.json({ success: true, record: result.rows[0] });
@@ -2498,7 +2495,7 @@ app.get('/api/vehicles/:id/details', async (req, res) => {
   }
 });
 // ============================================================
-// AUTH â€” LOGIN + JWT
+// AUTH — LOGIN + JWT
 // ============================================================
 
 const JWT_SECRET = process.env.JWT_SECRET || 'vela-default-secret-change-me';
@@ -2591,14 +2588,14 @@ app.post('/api/vehicles/:id/oil-change', async (req, res) => {
     const km = veh.rows[0].current_km || 0;
     const today = new Date().toISOString().split('T')[0];
 
-    // 1) Ø³Ø¬Ù‘Ù„ Oil Change ÙÙŠ Ø¬Ø¯ÙˆÙ„ oil_changes
+    // 1) سجّل Oil Change في جدول oil_changes
     await pool.query(
       `INSERT INTO oil_changes (vehicle_id, oil_change_km, oil_change_date, changed_by, notes)
        VALUES ($1, $2, $3, $4, $5)`,
       [id, km, today, changedBy || 'Driver', 'Oil change by driver']
     );
 
-    // 2) Ø­Ø¯Ù‘Ø« vehicles
+    // 2) حدّث vehicles
     await pool.query(
       `UPDATE vehicles
        SET last_oil_km = $1, last_oil_change_date = $2, updated_at = NOW()
@@ -2606,7 +2603,7 @@ app.post('/api/vehicles/:id/oil-change', async (req, res) => {
       [km, today, id]
     );
 
-    // 3) âœ… Ø­Ø¯Ù‘Ø« Ø¢Ø®Ø± Ø³Ø¬Ù„ KM Ù„ÙŠÙØ¹Ù„Ù‘Ù… Ø£Ù†Ù‡ Ø¹Ù†Ø¯Ù‡ Oil Change
+    // 3) ✅ حدّث آخر سجل KM ليُعلّم أنه عنده Oil Change
     await pool.query(
       `UPDATE km_records
        SET is_oil_change = 1
@@ -2769,12 +2766,12 @@ app.get('/api/tickets/report', async (req, res) => {
       ? 'AND ' + dateConditions.join(' AND ')
       : '';
 
-    // ÙÙ„ØªØ± Ø§Ù„ØªØ°Ø§ÙƒØ± Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ© (Ø¥Ø°Ø§ Ù„Ù… ÙŠÙÙØ¹Ù‘Ù„ includeSystem)
+    // فلتر التذاكر التلقائية (إذا لم يُفعّل includeSystem)
     const systemFilter = includeSystem === 'true'
       ? ''
       : `AND reported_by != 'System' AND category NOT IN ('Daily KM', 'Maintenance')`;
 
-    // 1) Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø¹Ø§Ù…Ø©
+    // 1) إحصائيات عامة
     const stats = await pool.query(
       `SELECT
         COUNT(*) AS total,
@@ -2787,7 +2784,7 @@ app.get('/api/tickets/report', async (req, res) => {
       params
     );
 
-    // 2) Ø­Ø³Ø¨ Ø§Ù„ÙÙ†ÙŠ
+    // 2) حسب الفني
     const byTechnician = await pool.query(
       `SELECT
         COALESCE(assigned_to_name, 'Unassigned') AS technician,
@@ -2800,7 +2797,7 @@ app.get('/api/tickets/report', async (req, res) => {
       params
     );
 
-    // 3) Ø­Ø³Ø¨ Ø§Ù„ÙØ¦Ø©
+    // 3) حسب الفئة
     const byCategory = await pool.query(
       `SELECT
         COALESCE(category, 'Other') AS category,
@@ -2813,7 +2810,7 @@ app.get('/api/tickets/report', async (req, res) => {
       params
     );
 
-    // 4) Ø­Ø³Ø¨ Ø§Ù„Ù…Ø±ÙƒØ¨Ø©
+    // 4) حسب المركبة
     const byVehicle = await pool.query(
       `SELECT
         t.vehicle_id,
@@ -2832,7 +2829,7 @@ app.get('/api/tickets/report', async (req, res) => {
       params
     );
 
-    // 5) Ø¬Ø¯ÙˆÙ„ ÙƒÙ„ Ø§Ù„ØªØ°Ø§ÙƒØ± Ø§Ù„Ù…ØºÙ„Ù‚Ø©
+    // 5) جدول كل التذاكر المغلقة
     const closedTickets = await pool.query(
       `SELECT
         t.id,
@@ -2898,7 +2895,7 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
       ? 'AND ' + dateConditions.join(' AND ')
       : '';
 
-    // 1) Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø¹Ø§Ù…Ø©
+    // 1) إحصائيات عامة
     const stats = await pool.query(
       `SELECT
         COUNT(*) AS total,
@@ -2909,7 +2906,7 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
       params
     );
 
-    // 2) Ø­Ø³Ø¨ Ø§Ù„Ù†ÙˆØ¹
+    // 2) حسب النوع
     const byType = await pool.query(
       `SELECT
         COALESCE(type, 'Other') AS type,
@@ -2924,7 +2921,7 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
       params
     );
 
-    // 3) Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ Ø­Ø³Ø¨ Ø§Ù„Ù†ÙˆØ¹ (ÙƒÙ… Ø³ÙŠØ§Ø±Ø© Ù„Ù… ØªÙÙ†Ø¬Ø²)
+    // 3) المتبقي حسب النوع (كم سيارة لم تُنجز)
     const remaining = await pool.query(
       `SELECT
         COALESCE(pm.type, 'Other') AS type,
@@ -2936,12 +2933,12 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
       params
     );
 
-    // 4) Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…Ø±ÙƒØ¨Ø§Øª (Ù„ÙƒÙŠ Ù†Ø­Ø³Ø¨ Ù†Ø³Ø¨Ø© Ø§Ù„Ø¥Ù†Ø¬Ø§Ø²)
+    // 4) إجمالي المركبات (لكي نحسب نسبة الإنجاز)
     const totalVehicles = await pool.query(
       `SELECT COUNT(*) AS count FROM vehicles WHERE status = 'Active' OR status IS NULL`
     );
 
-    // 5) Ø§Ù„Ø³Ø¬Ù„Ø§Øª Ø§Ù„ØªÙØµÙŠÙ„ÙŠØ©
+    // 5) السجلات التفصيلية
     const details = await pool.query(
       `SELECT
         pm.id,
@@ -2998,7 +2995,7 @@ app.get(/.*/, (req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`ðŸš€ Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
 
@@ -3008,3 +3005,4 @@ app.listen(PORT, () => {
 // Render redeploy verification
 
 app.get('/api/debug-db', async (req, res) => { try { const db = await pool.query('SELECT current_database() AS db, current_user AS usr'); const p = await pool.query('SELECT COUNT(*) AS projects FROM public.development_projects'); res.json({ db: db.rows[0], projects: p.rows[0].projects }); } catch (err) { res.status(500).json({ error: err.message }); } });
+
