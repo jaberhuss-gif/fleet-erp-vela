@@ -3006,3 +3006,5 @@ app.listen(PORT, () => {
 // Dev projects route verified
 
 // Render redeploy verification
+
+app.get('/api/debug-db', async (req, res) => { try { const db = await pool.query('SELECT current_database() AS db, current_user AS usr'); const p = await pool.query('SELECT COUNT(*) AS projects FROM public.development_projects'); res.json({ db: db.rows[0], projects: p.rows[0].projects }); } catch (err) { res.status(500).json({ error: err.message }); } });
