@@ -401,31 +401,6 @@ app.post('/api/buildings/import-work-orders', async (req, res) => {
   }
 });
 // ========== Ø§Ù„Ù…Ø´Ø§Ø±ÙŠØ¹ Ø§Ù„ØªØ·ÙˆÙŠØ±ÙŠØ© ==========
-app.get('/api/buildings/dev-projects-test', async (req, res) => {
-  try {
-    const db = await pool.query(
-      SELECT current_database() AS db,
-             current_user AS usr,
-             COUNT(*) AS projects
-      FROM development_projects
-    );
-    res.json(db.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-app.get('/api/buildings/dev-projects', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM development_projects ORDER BY created_at DESC'
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('DEV PROJECTS ERROR:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.post('/api/buildings/dev-projects', async (req, res) => {
   try {
     const { name, site_id, description, contractor, budget, status, start_date, end_date } = req.body;
@@ -3014,3 +2989,4 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`ðŸš€ Server running on http://localhost:${PORT}`);
 });
+
