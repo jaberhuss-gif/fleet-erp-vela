@@ -403,23 +403,13 @@ app.post('/api/buildings/import-work-orders', async (req, res) => {
 // ========== المشاريع التطويرية ==========
 app.get('/api/buildings/dev-projects', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT dp.*, s.name as site_name
-      FROM development_projects dp
-      LEFT JOIN sites s ON dp.site_id = s.id
-      ORDER BY dp.created_at DESC
-    `);
-
+    const result = await pool.query(
+      'SELECT * FROM development_projects ORDER BY created_at DESC'
+    );
     res.json(result.rows);
   } catch (err) {
     console.error('DEV PROJECTS ERROR:', err);
-    res.status(500).json({
-      error: 'Failed to load development projects',
-      details: err.message,
-      code: err.code || null,
-      detail: err.detail || null,
-      hint: err.hint || null
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
