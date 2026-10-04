@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-const api = {\n  get: (url, config={}) => axios.get('/api'+url, config),\n  post: (url, data, config={}) => axios.post('/api'+url, data, config)\n};
+const api = {
+  get: (url, config = {}) => axios.get('/api' + url, config),
+  post: (url, data, config = {}) => axios.post('/api' + url, data, config)
+};
 
 const POSITIONS = ['Front Left','Front Right','Rear Left','Rear Right','Spare','Sixth'];
 const EVENT_TYPES = ['PUNCTURE','REPLACEMENT','SPARE','ROTATION','INSPECTION','OTHER'];
