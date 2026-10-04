@@ -12,8 +12,6 @@ import OilChanges from './OilChanges';
 import OilStatus from './OilStatus';
 import DailyCompliance from './DailyCompliance';
 import PeriodicMaintenance from './PeriodicMaintenance';
-import InspectedVehicles from './InspectedVehicles';
-import NotInspectedVehicles from './NotInspectedVehicles';
 import Inventory from './Inventory';
 import StockTransactions from './StockTransactions';
 import WarehouseLocations from './WarehouseLocations';
@@ -197,8 +195,6 @@ function App() {
               <MenuItem label="Tire Control" icon="🎛️" active={page === 'tirecontrol'} onClick={() => handleMenuClick('tirecontrol')} show={isMobile || sidebarOpen} />
               <MenuItem label="KM Records" icon="📊" active={page === 'kmrecords'} onClick={() => handleMenuClick('kmrecords')} show={isMobile || sidebarOpen} />
               <MenuItem label="Periodic Maintenance" icon="🔧" active={page === 'periodicmaintenance'} onClick={() => handleMenuClick('periodicmaintenance')} show={isMobile || sidebarOpen} />
-              <MenuItem label="Inspected Vehicles" icon="✅" active={page === 'inspectedvehicles'} onClick={() => handleMenuClick('inspectedvehicles')} show={isMobile || sidebarOpen} />
-              <MenuItem label="Not Inspected Vehicles" icon="⚠️" active={page === 'notinspectedvehicles'} onClick={() => handleMenuClick('notinspectedvehicles')} show={isMobile || sidebarOpen} />
               <MenuItem label="Inventory" icon="📦" active={page === 'inventory'} onClick={() => handleMenuClick('inventory')} show={isMobile || sidebarOpen} />
               <MenuItem label="Stock Transactions" icon="📊" active={page === 'stocktransactions'} onClick={() => handleMenuClick('stocktransactions')} show={isMobile || sidebarOpen} />
               <MenuItem label="Warehouse Locations" icon="🏢" active={page === 'warehouselocations'} onClick={() => handleMenuClick('warehouselocations')} show={isMobile || sidebarOpen} />
@@ -243,8 +239,6 @@ function App() {
             {page === 'oilstatus' && <OilStatus />}
             {page === 'dailycompliance' && <DailyCompliance />}
             {page === 'periodicmaintenance' && <PeriodicMaintenance />}
-            {page === 'inspectedvehicles' && <InspectedVehicles />}
-            {page === 'notinspectedvehicles' && <NotInspectedVehicles />}
             {page === 'inventory' && <Inventory />}
             {page === 'stocktransactions' && <StockTransactions />}
             {page === 'warehouselocations' && <WarehouseLocations />}
