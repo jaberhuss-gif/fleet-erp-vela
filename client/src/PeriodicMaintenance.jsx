@@ -106,40 +106,61 @@ function PeriodicMaintenance() {
     '6_months_general': '6 Months General',
   }[t] || t);
 
-  // A 6-month record with notes (or Completed) is proof that the inspection was performed.
-  // Notes can contain findings; they still count as inspected.
-  const isSixMonthInspected = (r) => r.type === '6_months_general' && (
-    r.status === 'Completed' || Boolean(String(r.notes || '').trim())
+  const isInspected = (r) => (
+    (r.type === '6_months_general' || r.type === 'inspection') &&
+    (r.status === 'Completed' || Boolean(r.completed_date))
+  );
+
+  const controlLabel = (type) => (
+    type === '6_months_general' ? '6-Month Maintenance' :
+    type === 'inspection' ? 'Annual Inspection' : typeLabel(type)
   );
 
   const statusInfo = (r) => {
-    if (isSixMonthInspected(r)) return { label: 'GREEN — Inspected', color: '#16a34a' };
-    if (r.type === '6_months_general') return { label: 'RED — Not Inspected', color: '#dc2626' };
+    if (isInspected(r)) return { label: 'GREEN — Inspected', color: '#16a34a' };
+    if (r.type === '6_months_general' || r.type === 'inspection') return { label: 'RED — Not Inspected', color: '#dc2626' };
     return r.status === 'Completed'
       ? { label: 'Completed', color: '#28a745' }
       : { label: r.status || 'Pending', color: '#ffc107' };
   };
 
-  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
-  if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>;
+  // Both control lists come only from Periodic Maintenance records.
+  // A vehicle can appear in both lists when one control is complete and another is pending.
+  const vehicleControls = Object.values(records
+    .filter(r => r.type === '6_months_general' || r.type === 'inspection')
+    .reduce((map, r) => {
+      const key = String(r.vehicle_id);
+      if (!map[key]) map[key] = {
+        vehicle_id: r.vehicle_id, plate_number: r.plate_number, plate_code: r.plate_code,
+        driver_name: r.driver_name || r.driver || '-', controls: {}
+      };
+      const current = map[key].controls[r.type];
+      const currentTime = current ? new Date(current.completed_date || current.scheduled_date || 0).getTime() : -1;
+      const recordTime = new Date(r.completed_date || r.scheduled_date || 0).getTime();
+      if (!current || recordTime >= currentTime) map[key].controls[r.type] = r;
+      return map;
+    }, {}));
 
-  // All three views use the exact same records loaded from Periodic Maintenance.
-  // Inspected / Not Inspected are only filters of the existing PM status.
-  const displayedRecords = viewMode === 'all'
-    ? records
-    : records.filter((r) => {
-        const label = statusInfo(r).label;
-        return viewMode === 'inspected'
-          ? label.includes('Inspected') && !label.includes('Not Inspected')
-          : label.includes('Not Inspected');
-      });
+  const inspectedVehicles = vehicleControls.flatMap(v =>
+    Object.values(v.controls).filter(isInspected).map(r => ({ ...v, record: r, control: controlLabel(r.type) }))
+  );
+
+  const notInspectedVehicles = vehicleControls.flatMap(v =>
+    ['6_months_general', 'inspection']
+      .filter(type => !v.controls[type] || !isInspected(v.controls[type]))
+      .map(type => ({
+        ...v,
+        record: v.controls[type] || { vehicle_id: v.vehicle_id, plate_number: v.plate_number, plate_code: v.plate_code, driver_name: v.driver_name, type, status: 'Pending' },
+        control: controlLabel(type)
+      }))
+  );
 
   return (
     <div style={{ padding: 20, fontFamily: 'Arial' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h1 style={{ margin: 0 }}>Periodic Maintenance ({records.length})</h1>
-          <div style={{ marginTop: 8, fontSize: 13 }}><strong>6-Month Control:</strong> <span style={{color:'#15803d'}}>GREEN = inspected (notes or completed)</span> · <span style={{color:'#b91c1c'}}>RED = not inspected (no notes)</span></div>
+          <div style={{ marginTop: 8, fontSize: 13 }}><strong>Inspection Control:</strong> GREEN = completed inspection · RED = not inspected. One vehicle may have one completed control and another pending.</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
@@ -154,27 +175,9 @@ function PeriodicMaintenance() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setViewMode('all')}
-          style={{ ...btnStyle(viewMode === 'all' ? '#1e3a8a' : '#64748b') }}
-        >
-          📋 Periodic Maintenance ({records.length})
-        </button>
-        <button
-          onClick={() => setViewMode('inspected')}
-          style={{ ...btnStyle(viewMode === 'inspected' ? '#16a34a' : '#64748b') }}
-        >
-          ✅ Inspected Vehicles ({records.filter(r => {
-            const label = statusInfo(r).label;
-            return label.includes('Inspected') && !label.includes('Not Inspected');
-          }).length})
-        </button>
-        <button
-          onClick={() => setViewMode('not-inspected')}
-          style={{ ...btnStyle(viewMode === 'not-inspected' ? '#dc2626' : '#64748b') }}
-        >
-          ⚠️ Not Inspected Vehicles ({records.filter(r => statusInfo(r).label.includes('Not Inspected')).length})
-        </button>
+        <button onClick={() => setViewMode('all')} style={btnStyle(viewMode === 'all' ? '#1e3a8a' : '#64748b')}>📋 Periodic Maintenance ({records.length})</button>
+        <button onClick={() => setViewMode('inspected')} style={btnStyle(viewMode === 'inspected' ? '#16a34a' : '#64748b')}>✅ Inspected Vehicles ({inspectedVehicles.length})</button>
+        <button onClick={() => setViewMode('not-inspected')} style={btnStyle(viewMode === 'not-inspected' ? '#dc2626' : '#64748b')}>⚠️ Not Inspected Vehicles ({notInspectedVehicles.length})</button>
       </div>
 
       {showForm && (
@@ -209,51 +212,23 @@ function PeriodicMaintenance() {
       )}
 
       <div style={{ overflowX: 'auto', marginTop: 20 }}>
-        <table style={tableStyle}>
-          <thead>
-            <tr style={{ background: '#1e293b', color: 'white' }}>
-              <th style={thStyle}>#</th>
-              <th style={thStyle}>Vehicle</th>
-              <th style={thStyle}>Driver</th>
-              <th style={thStyle}>Type</th>
-              <th style={thStyle}>Scheduled</th>
-              <th style={thStyle}>Completed</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Technician</th>
-              <th style={thStyle}>Cost</th>
-              <th style={thStyle}>Notes</th>
-              <th style={thStyle}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayedRecords.length === 0 ? (
-              <tr><td colSpan="11" style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>{viewMode === 'inspected' ? 'No inspected records found' : viewMode === 'not-inspected' ? 'No not-inspected records found' : 'No maintenance records found'}</td></tr>
-            ) : (
-              displayedRecords.map((r) => (
-                <tr key={r.id}>
-                  <td style={tdStyle}>{r.id}</td>
-                  <td style={tdStyle}><strong>{r.plate_number} {r.plate_code}</strong></td>
-                  <td style={tdStyle}>{r.driver_name || r.driver || '-'}</td>
-                  <td style={tdStyle}>{typeLabel(r.type)}</td>
-                  <td style={tdStyle}>{r.scheduled_date ? new Date(r.scheduled_date).toLocaleDateString('en-US') : '-'}</td>
-                  <td style={tdStyle}>{r.completed_date ? new Date(r.completed_date).toLocaleDateString('en-US') : '-'}</td>
-                  <td style={tdStyle}>
-                    <span style={{ background: statusInfo(r).color, color: 'white', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>
-                      {statusInfo(r).label}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>{r.technician || '-'}</td>
-                  <td style={tdStyle}>{Number(r.cost || 0).toLocaleString()}</td>
-                  <td style={{ ...tdStyle, maxWidth: 200, whiteSpace: 'pre-wrap', fontSize: 11 }}>{r.notes || '-'}</td>
-                  <td style={tdStyle}>
-                    <button onClick={() => handleEdit(r)} style={{ ...btnStyle('#007bff'), padding: '5px 10px', fontSize: 12, marginRight: 5 }}>Edit</button>
-                    <button onClick={() => handleDelete(r.id)} style={{ ...btnStyle('#dc3545'), padding: '5px 10px', fontSize: 12 }}>Delete</button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        {viewMode === 'all' ? (
+          <table style={tableStyle}>
+            <thead><tr style={{ background: '#1e293b', color: 'white' }}>
+              <th style={thStyle}>#</th><th style={thStyle}>Vehicle</th><th style={thStyle}>Driver</th><th style={thStyle}>Type</th><th style={thStyle}>Scheduled</th><th style={thStyle}>Completed</th><th style={thStyle}>Status</th><th style={thStyle}>Technician</th><th style={thStyle}>Cost</th><th style={thStyle}>Notes</th><th style={thStyle}>Actions</th>
+            </tr></thead>
+            <tbody>{records.length === 0 ? <tr><td colSpan="11" style={{...tdStyle,textAlign:'center',color:'#999'}}>No maintenance records found</td></tr> : records.map(r => (
+              <tr key={r.id}><td style={tdStyle}>{r.id}</td><td style={tdStyle}><strong>{r.plate_number} {r.plate_code}</strong></td><td style={tdStyle}>{r.driver_name || r.driver || '-'}</td><td style={tdStyle}>{typeLabel(r.type)}</td><td style={tdStyle}>{r.scheduled_date ? new Date(r.scheduled_date).toLocaleDateString('en-US') : '-'}</td><td style={tdStyle}>{r.completed_date ? new Date(r.completed_date).toLocaleDateString('en-US') : '-'}</td><td style={tdStyle}><span style={{background:statusInfo(r).color,color:'white',padding:'3px 10px',borderRadius:12,fontSize:11,fontWeight:'bold'}}>{statusInfo(r).label}</span></td><td style={tdStyle}>{r.technician || '-'}</td><td style={tdStyle}>{Number(r.cost || 0).toLocaleString()}</td><td style={{...tdStyle,maxWidth:200,whiteSpace:'pre-wrap',fontSize:11}}>{r.notes || '-'}</td><td style={tdStyle}><button onClick={() => handleEdit(r)} style={{...btnStyle('#007bff'),padding:'5px 10px',fontSize:12,marginRight:5}}>Edit</button><button onClick={() => handleDelete(r.id)} style={{...btnStyle('#dc3545'),padding:'5px 10px',fontSize:12}}>Delete</button></td></tr>
+            ))}</tbody>
+          </table>
+        ) : (
+          <table style={tableStyle}>
+            <thead><tr style={{background:viewMode === 'inspected' ? '#166534' : '#991b1b',color:'white'}}><th style={thStyle}>Vehicle</th><th style={thStyle}>Driver</th><th style={thStyle}>Control</th><th style={thStyle}>Scheduled</th><th style={thStyle}>Completed</th><th style={thStyle}>Status</th><th style={thStyle}>Technician</th><th style={thStyle}>Notes</th></tr></thead>
+            <tbody>{(viewMode === 'inspected' ? inspectedVehicles : notInspectedVehicles).length === 0 ? <tr><td colSpan="8" style={{...tdStyle,textAlign:'center',color:'#999'}}>No {viewMode === 'inspected' ? 'inspected' : 'not-inspected'} controls found</td></tr> : (viewMode === 'inspected' ? inspectedVehicles : notInspectedVehicles).map((item,i) => (
+              <tr key={item.vehicle_id + '-' + item.record.type + '-' + (item.record.id || i)}><td style={tdStyle}><strong>{item.plate_number} {item.plate_code}</strong></td><td style={tdStyle}>{item.driver_name || '-'}</td><td style={tdStyle}>{item.control}</td><td style={tdStyle}>{item.record.scheduled_date ? new Date(item.record.scheduled_date).toLocaleDateString('en-US') : '-'}</td><td style={tdStyle}>{item.record.completed_date ? new Date(item.record.completed_date).toLocaleDateString('en-US') : '-'}</td><td style={tdStyle}><span style={{background:isInspected(item.record)?'#16a34a':'#dc2626',color:'white',padding:'3px 10px',borderRadius:12,fontSize:11,fontWeight:'bold'}}>{isInspected(item.record)?'GREEN — Inspected':'RED — Not Inspected'}</span></td><td style={tdStyle}>{item.record.technician || '-'}</td><td style={tdStyle}>{item.record.notes || '-'}</td></tr>
+            ))}</tbody>
+          </table>
+        )}
       </div>
     </div>
   );
