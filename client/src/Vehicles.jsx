@@ -10,6 +10,8 @@ function Vehicles() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   const [formData, setFormData] = useState({
     plate_number: '',
@@ -108,6 +110,26 @@ function Vehicles() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleVehicleSync = async () => {
+    if (!window.confirm('Update vehicle data in Vela from the old Fleet ERP for yesterday and today?')) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await axios.post('/api/fleet/vehicles/sync-from-old');
+      setSyncResult(res.data);
+      alert(
+        `✅ Vehicle update completed.\n\nVehicles updated: ${res.data.vehicles_updated}\nVehicles added: ${res.data.vehicles_inserted}\nKM inserted: ${res.data.km_inserted}\nKM updated: ${res.data.km_updated}`
+      );
+      loadData();
+    } catch (err) {
+      const message = err.response?.data?.error || err.message;
+      setSyncResult({ success: false, error: message });
+      alert('❌ Vehicle update failed: ' + message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleDelete = async (id, plate) => {
     if (!window.confirm(`Delete vehicle "${plate}"?`)) return;
     try {
@@ -133,11 +155,30 @@ function Vehicles() {
             onChange={handleSearch}
             style={{ ...inputStyle, width: 200 }}
           />
+          <button onClick={handleVehicleSync} disabled={syncing} style={{ ...btnStyle(syncing ? '#94a3b8' : '#0f766e'), minWidth: 190 }}>
+            {syncing ? '⏳ Updating...' : '🔄 Update Vehicle Data'}
+          </button>
           <button onClick={() => { resetForm(); setShowForm(!showForm); }} style={btnStyle('#007bff')}>
             {showForm ? 'Cancel' : '+ Add Vehicle'}
           </button>
         </div>
       </div>
+
+      {syncResult && (
+        <div style={{
+          marginTop: 12,
+          padding: 10,
+          borderRadius: 6,
+          background: syncResult.success ? '#ecfdf5' : '#fef2f2',
+          border: `1px solid ${syncResult.success ? '#10b981' : '#ef4444'}`,
+          color: syncResult.success ? '#065f46' : '#991b1b',
+          fontSize: 12
+        }}>
+          {syncResult.success
+            ? `Last update: ${syncResult.from_date} → ${syncResult.to_date} | Vehicles: ${syncResult.vehicles_updated + syncResult.vehicles_inserted} | KM inserted: ${syncResult.km_inserted} | KM updated: ${syncResult.km_updated}`
+            : `Update failed: ${syncResult.error}`}
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} style={formStyle}>
