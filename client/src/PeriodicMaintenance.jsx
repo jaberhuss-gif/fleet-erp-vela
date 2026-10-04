@@ -135,41 +135,59 @@ function PeriodicMaintenance() {
       : { label: r.status || 'Pending', color: '#ffc107' };
   };
 
-  // Both control lists come only from Periodic Maintenance records.
-  // A vehicle can appear in both lists when one control is complete and another is pending.
-  const vehicleControls = Object.values(records
-    .filter(r => r.type === '6_months_general' || r.type === 'inspection')
-    .reduce((map, r) => {
-      const key = String(r.vehicle_id);
-      if (!map[key]) map[key] = {
-        vehicle_id: r.vehicle_id, plate_number: r.plate_number, plate_code: r.plate_code,
-        driver_name: r.driver_name || r.driver || '-', controls: {}
-      };
-      const current = map[key].controls[r.type];
-      const currentTime = current ? new Date(current.completed_date || current.scheduled_date || 0).getTime() : -1;
-      const recordTime = new Date(r.completed_date || r.scheduled_date || 0).getTime();
-      if (!current || recordTime >= currentTime) map[key].controls[r.type] = r;
-      return map;
-    }, {}));
+  // Build the matrix from ALL fleet vehicles. A vehicle with no PM record
+  // is still shown as RED with both controls missing.
+  const pickLatestControl = (list, type) => {
+    const typed = list.filter(r => r.type === type);
+    if (!typed.length) return null;
 
-  const vehicleSummary = vehicleControls.map(v => {
-    const six = v.controls['6_months_general'];
-    const annual = v.controls['inspection'];
+    // Prefer actual inspection evidence over an untouched future/pending schedule.
+    const evidenced = typed.filter(r => isInspected(r));
+    const pool = evidenced.length ? evidenced : typed;
+
+    return pool.reduce((best, r) => {
+      if (!best) return r;
+      const bestTime = new Date(best.completed_date || best.scheduled_date || 0).getTime();
+      const rTime = new Date(r.completed_date || r.scheduled_date || 0).getTime();
+      if (rTime > bestTime) return r;
+      if (rTime === bestTime && Number(r.id || 0) > Number(best.id || 0)) return r;
+      return best;
+    }, null);
+  };
+
+  const recordsByVehicle = records.reduce((map, r) => {
+    const key = String(r.vehicle_id);
+    if (!map[key]) map[key] = [];
+    map[key].push(r);
+    return map;
+  }, {});
+
+  const vehicleSummary = vehicles.map(v => {
+    const vehicleRecords = recordsByVehicle[String(v.id)] || [];
+    const six = pickLatestControl(vehicleRecords, '6_months_general');
+    const annual = pickLatestControl(vehicleRecords, 'inspection');
     const sixDone = Boolean(six && isInspected(six));
     const annualDone = Boolean(annual && isInspected(annual));
     const missing = [];
     if (!sixDone) missing.push('6-Month Maintenance');
     if (!annualDone) missing.push('Annual Inspection');
-    return { ...v, six, annual, sixDone, annualDone, fullyInspected: sixDone && annualDone, missing };
+
+    return {
+      vehicle_id: v.id,
+      plate_number: v.plate_number || v.plate,
+      plate_code: v.plate_code || '',
+      driver_name: v.driver_name || v.driver || '-',
+      six,
+      annual,
+      sixDone,
+      annualDone,
+      fullyInspected: sixDone && annualDone,
+      missing
+    };
   });
 
-  // Page 2 = partially inspected: exactly one of the two controls is complete.
   const partiallyInspectedVehicles = vehicleSummary.filter(v => v.sixDone !== v.annualDone);
-
-  // Page 3 = not inspected at all: neither control is complete.
   const notInspectedVehicles = vehicleSummary.filter(v => !v.sixDone && !v.annualDone);
-
-  // Page 4 = fully inspected: both controls are complete.
   const fullyInspectedVehicles = vehicleSummary.filter(v => v.fullyInspected);
 
   const printView = () => {
