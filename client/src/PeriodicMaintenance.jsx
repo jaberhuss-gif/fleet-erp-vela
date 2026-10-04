@@ -12,6 +12,7 @@ function PeriodicMaintenance() {
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
   const [editingId, setEditingId] = useState(null);
+  const [viewMode, setViewMode] = useState('all');
 
   const emptyForm = {
     vehicle_id: '',
@@ -122,6 +123,17 @@ function PeriodicMaintenance() {
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
   if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>;
 
+  // All three views use the exact same records loaded from Periodic Maintenance.
+  // Inspected / Not Inspected are only filters of the existing PM status.
+  const displayedRecords = viewMode === 'all'
+    ? records
+    : records.filter((r) => {
+        const label = statusInfo(r).label;
+        return viewMode === 'inspected'
+          ? label.includes('Inspected') && !label.includes('Not Inspected')
+          : label.includes('Not Inspected');
+      });
+
   return (
     <div style={{ padding: 20, fontFamily: 'Arial' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
@@ -139,6 +151,30 @@ function PeriodicMaintenance() {
             {showForm ? 'Cancel' : '+ Add Record'}
           </button>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setViewMode('all')}
+          style={{ ...btnStyle(viewMode === 'all' ? '#1e3a8a' : '#64748b') }}
+        >
+          📋 Periodic Maintenance ({records.length})
+        </button>
+        <button
+          onClick={() => setViewMode('inspected')}
+          style={{ ...btnStyle(viewMode === 'inspected' ? '#16a34a' : '#64748b') }}
+        >
+          ✅ Inspected Vehicles ({records.filter(r => {
+            const label = statusInfo(r).label;
+            return label.includes('Inspected') && !label.includes('Not Inspected');
+          }).length})
+        </button>
+        <button
+          onClick={() => setViewMode('not-inspected')}
+          style={{ ...btnStyle(viewMode === 'not-inspected' ? '#dc2626' : '#64748b') }}
+        >
+          ⚠️ Not Inspected Vehicles ({records.filter(r => statusInfo(r).label.includes('Not Inspected')).length})
+        </button>
       </div>
 
       {showForm && (
@@ -190,10 +226,10 @@ function PeriodicMaintenance() {
             </tr>
           </thead>
           <tbody>
-            {records.length === 0 ? (
-              <tr><td colSpan="11" style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>No maintenance records found</td></tr>
+            {displayedRecords.length === 0 ? (
+              <tr><td colSpan="11" style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>{viewMode === 'inspected' ? 'No inspected records found' : viewMode === 'not-inspected' ? 'No not-inspected records found' : 'No maintenance records found'}</td></tr>
             ) : (
-              records.map((r) => (
+              displayedRecords.map((r) => (
                 <tr key={r.id}>
                   <td style={tdStyle}>{r.id}</td>
                   <td style={tdStyle}><strong>{r.plate_number} {r.plate_code}</strong></td>
