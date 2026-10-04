@@ -152,12 +152,18 @@ function PeriodicMaintenance() {
     return { ...v, six, annual, sixDone, annualDone, fullyInspected: sixDone && annualDone, missing };
   });
 
-  // Page 2 = vehicles with incomplete inspection requirements.
-  // Yellow means one control is complete; red means neither control is complete.
-  const inspectedVehicles = vehicleSummary.filter(v => !v.fullyInspected);
+  // Page 2 = partially inspected: exactly one of the two controls is complete.
+  const partiallyInspectedVehicles = vehicleSummary.filter(v => v.sixDone !== v.annualDone);
 
-  // Page 3 = vehicles with BOTH 6-month and annual inspection completed.
+  // Page 3 = not inspected at all: neither control is complete.
+  const notInspectedVehicles = vehicleSummary.filter(v => !v.sixDone && !v.annualDone);
+
+  // Page 4 = fully inspected: both controls are complete.
   const fullyInspectedVehicles = vehicleSummary.filter(v => v.fullyInspected);
+
+  const printView = () => {
+    window.print();
+  };
 
 
   return (
@@ -165,7 +171,7 @@ function PeriodicMaintenance() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h1 style={{ margin: 0 }}>Periodic Maintenance ({records.length})</h1>
-          <div style={{ marginTop: 8, fontSize: 13 }}><strong>Inspection Control:</strong> 🟡 Yellow = one of the two controls completed · 🔴 Red = both controls missing · 🟢 Green = both 6-Month and Annual completed.</div>
+          <div style={{ marginTop: 8, fontSize: 13 }}><strong>Inspection Control:</strong> 🟡 Partial · 🔴 Not Inspected · 🟢 Fully Inspected.</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
@@ -181,8 +187,9 @@ function PeriodicMaintenance() {
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <button onClick={() => setViewMode('all')} style={btnStyle(viewMode === 'all' ? '#1e3a8a' : '#64748b')}>📋 Periodic Maintenance ({records.length})</button>
-        <button onClick={() => setViewMode('inspected')} style={btnStyle(viewMode === 'inspected' ? '#ca8a04' : '#64748b')}>🟡 Inspected Vehicles ({inspectedVehicles.length})</button>
-        <button onClick={() => setViewMode('fully-inspected')} style={btnStyle(viewMode === 'fully-inspected' ? '#16a34a' : '#64748b')}>✅ Fully Inspected Vehicles ({fullyInspectedVehicles.length})</button>
+        <button onClick={() => setViewMode('partial')} style={btnStyle(viewMode === 'partial' ? '#ca8a04' : '#64748b')}>🟡 Partially Inspected ({partiallyInspectedVehicles.length})</button>
+        <button onClick={() => setViewMode('none')} style={btnStyle(viewMode === 'none' ? '#dc2626' : '#64748b')}>🔴 Not Inspected ({notInspectedVehicles.length})</button>
+        <button onClick={() => setViewMode('fully-inspected')} style={btnStyle(viewMode === 'fully-inspected' ? '#16a34a' : '#64748b')}>🟢 Fully Inspected ({fullyInspectedVehicles.length})</button>
       </div>
 
       {showForm && (
@@ -216,7 +223,10 @@ function PeriodicMaintenance() {
         </form>
       )}
 
-      <div style={{ overflowX: 'auto', marginTop: 20 }}>
+      <div className="periodic-print-area" style={{ overflowX: 'auto', marginTop: 20 }}>
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+          <button onClick={printView} style={btnStyle('#475569')}>🖨️ Print / Save PDF</button>
+        </div>
         {viewMode === 'all' ? (
           <table style={tableStyle}>
             <thead><tr style={{background:'#1e293b',color:'white'}}>
@@ -226,21 +236,20 @@ function PeriodicMaintenance() {
               <td style={tdStyle}>{r.id}</td><td style={tdStyle}><strong>{r.plate_number} {r.plate_code}</strong></td><td style={tdStyle}>{r.driver_name||r.driver||'-'}</td><td style={tdStyle}>{typeLabel(r.type)}</td>
               <td style={tdStyle}>{r.scheduled_date?new Date(r.scheduled_date).toLocaleDateString('en-US'):'-'}</td><td style={tdStyle}>{r.completed_date?new Date(r.completed_date).toLocaleDateString('en-US'):'-'}</td>
               <td style={tdStyle}><span style={{background:statusInfo(r).color,color:'white',padding:'3px 10px',borderRadius:12,fontSize:11,fontWeight:'bold'}}>{statusInfo(r).label}</span></td><td style={tdStyle}>{r.technician||'-'}</td><td style={tdStyle}>{Number(r.cost||0).toLocaleString()}</td><td style={{...tdStyle,maxWidth:200,whiteSpace:'pre-wrap',fontSize:11}}>{r.notes||'-'}</td>
-              <td style={tdStyle}><button onClick={()=>handleEdit(r)} style={{...btnStyle('#007bff'),padding:'5px 10px',fontSize:12,marginRight:5}}>Edit</button><button onClick={()=>handleDelete(r.id)} style={{...btnStyle('#dc3545'),padding:'5px 10px',fontSize:12}}>Delete</button></td>
+              <td className="no-print" style={tdStyle}><button onClick={()=>handleEdit(r)} style={{...btnStyle('#007bff'),padding:'5px 10px',fontSize:12,marginRight:5}}>Edit</button><button onClick={()=>handleDelete(r.id)} style={{...btnStyle('#dc3545'),padding:'5px 10px',fontSize:12}}>Delete</button></td>
             </tr>)}</tbody>
           </table>
         ) : (
           <table style={tableStyle}>
-            <thead><tr style={{background:viewMode==='fully-inspected'?'#166534':'#ca8a04',color:'white'}}>
+            <thead><tr style={{background:viewMode==='fully-inspected'?'#166534':viewMode==='none'?'#991b1b':'#ca8a04',color:'white'}}>
               <th style={thStyle}>Vehicle</th><th style={thStyle}>Driver</th><th style={thStyle}>6-Month</th><th style={thStyle}>Annual Inspection</th><th style={thStyle}>Overall</th><th style={thStyle}>Missing</th>
             </tr></thead>
             <tbody>
-              {(viewMode==='fully-inspected'?fullyInspectedVehicles:inspectedVehicles).length===0
+              {(viewMode==='fully-inspected'?fullyInspectedVehicles:viewMode==='none'?notInspectedVehicles:partiallyInspectedVehicles).length===0
                 ? <tr><td colSpan="6" style={{...tdStyle,textAlign:'center',color:'#999'}}>No vehicles found</td></tr>
-                : (viewMode==='fully-inspected'?fullyInspectedVehicles:inspectedVehicles).map(v=>{
-                  const partial=v.sixDone!==v.annualDone;
-                  const color=viewMode==='fully-inspected'?'#16a34a':(partial?'#eab308':'#dc2626');
-                  const overall=viewMode==='fully-inspected'?'GREEN — Fully Inspected':partial?'YELLOW — Partially Inspected':'RED — Not Inspected';
+                : (viewMode==='fully-inspected'?fullyInspectedVehicles:viewMode==='none'?notInspectedVehicles:partiallyInspectedVehicles).map(v=>{
+                  const color=viewMode==='fully-inspected'?'#16a34a':viewMode==='none'?'#dc2626':'#eab308';
+                  const overall=viewMode==='fully-inspected'?'GREEN — Fully Inspected':viewMode==='none'?'RED — Not Inspected':'YELLOW — Partially Inspected';
                   return <tr key={v.vehicle_id}>
                     <td style={tdStyle}><strong>{v.plate_number} {v.plate_code}</strong></td><td style={tdStyle}>{v.driver_name||'-'}</td>
                     <td style={tdStyle}><span style={{background:v.sixDone?'#16a34a':'#dc2626',color:'white',padding:'3px 9px',borderRadius:12,fontSize:11,fontWeight:'bold'}}>{v.sixDone?'Inspected':'Not Inspected'}</span></td>
@@ -282,6 +291,22 @@ const tableStyle = {
 
 const thStyle = { padding: 12, textAlign: 'left', fontSize: 13 };
 const tdStyle = { padding: 12, textAlign: 'left', borderBottom: '1px solid #eee', fontSize: 13 };
+
+if (typeof document !== 'undefined' && !document.getElementById('periodic-maintenance-print-style')) {
+  const style = document.createElement('style');
+  style.id = 'periodic-maintenance-print-style';
+  style.textContent = `
+    @media print {
+      body * { visibility: hidden !important; }
+      .periodic-print-area, .periodic-print-area * { visibility: visible !important; }
+      .periodic-print-area { position: absolute; left: 0; top: 0; width: 100%; overflow: visible !important; }
+      .no-print { display: none !important; }
+      table { box-shadow: none !important; min-width: 0 !important; }
+      @page { size: landscape; margin: 10mm; }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 export default PeriodicMaintenance;
 
