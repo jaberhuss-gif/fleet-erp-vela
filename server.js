@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { mountTireRoutes } = require('./tire-management');
+const { mountTireRoutes } = require('./server/tire-management');
 require('dotenv').config();
 
 const app = express();
