@@ -572,6 +572,8 @@ app.post('/api/fleet/vehicles/sync-from-old', async (req, res) => {
              phone = COALESCE($9, phone),
              driver_phone = COALESCE($9, driver_phone),
              status = COALESCE($10, status),
+             inspection_last_date = COALESCE($11, inspection_last_date),
+             inspection_due_date = COALESCE($12, inspection_due_date),
              updated_at = NOW()
            WHERE id = $11`,
           [
@@ -585,6 +587,8 @@ app.post('/api/fleet/vehicles/sync-from-old', async (req, res) => {
             source.driver ?? null,
             source.phone ?? null,
             source.status ?? null,
+            source.inspection_last_date ?? null,
+            source.inspection_due_date ?? null,
             vehicleId
           ]
         );
@@ -594,8 +598,8 @@ app.post('/api/fleet/vehicles/sync-from-old', async (req, res) => {
           `INSERT INTO vehicles
              (plate_number, plate_code, plate, make, model, year, location,
               driver, driver_name, phone, driver_phone, current_km, last_oil_km,
-              oil_change_interval, last_oil_change_date, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$9,$10,$11,$12,$13,$14)
+              oil_change_interval, last_oil_change_date, inspection_last_date, inspection_due_date, status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$9,$10,$11,$12,$13,$14,$15,$16)
            RETURNING id`,
           [
             plateNumber,
@@ -611,6 +615,8 @@ app.post('/api/fleet/vehicles/sync-from-old', async (req, res) => {
             Number(source.last_oil_km) || 0,
             Number(source.oil_change_interval) || 5000,
             source.last_oil_change_date ?? null,
+            source.inspection_last_date ?? null,
+            source.inspection_due_date ?? null,
             source.status ?? 'Active'
           ]
         );
