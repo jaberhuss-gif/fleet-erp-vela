@@ -394,7 +394,7 @@ async function mountTireRoutes(app, dbPool) {\n  pool = dbPool;
   });
 
   app.post("/api/tire/vehicle/:vehicleId/reopen", async (req,res) => {
-    if (req.user?.role !== "Owner") return res.status(403).json({success:false,error:"Owner only"});
+    if (String(req.headers['x-user-role'] || '') !== 'Owner') return res.status(403).json({success:false,error:'Owner only'});
     try { res.json({success:true,survey:await reopenInitialSurvey(req.params.vehicleId,req.user?.id)}); }
     catch(e){ res.status(400).json({success:false,error:e.message}); }
   });
