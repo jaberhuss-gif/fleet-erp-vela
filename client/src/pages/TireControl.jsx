@@ -53,7 +53,7 @@ export default function TireControl() {
     try {
       setError('');
       const r = await api.get('/tire/control');
-      setRows(r.data.vehicles || []);
+      setRows((r.data.vehicles || []).filter(v => !/^test\b/i.test(String(v.plate || v.plate_number || '').trim())));
     } catch (e) {
       setError(e.response?.data?.error || e.message || 'Failed to load Tire Control.');
     } finally {
@@ -69,7 +69,7 @@ export default function TireControl() {
       || String(a.plate || '').localeCompare(String(b.plate || ''));
   }), [rows]);
 
-  const totals = useMemo(() => rows.reduce((a,r) => {
+  const totals = useMemo(() => sortedRows.reduce((a,r) => {
     const s = statusFor(r.overallStatus);
     return {...a, [s]: a[s] + 1};
   }, {red:0,yellow:0,green:0}), [rows]);
