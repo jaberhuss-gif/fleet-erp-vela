@@ -1,4 +1,5 @@
-let pool;\nconst query = (text, params) => pool.query(text, params);
+let pool;
+const query = (text, params) => pool.query(text, params);
 async function transaction(fn) {
   const client = await pool.connect();
   try {
@@ -375,7 +376,8 @@ async function createTireEvent(vehicleId, body, userId) {
   });
 }
 
-async function mountTireRoutes(app, dbPool) {\n  pool = dbPool;
+async function mountTireRoutes(app, dbPool) {
+  pool = dbPool;
   await ensureTireSchema();
 
   app.get("/api/tire/control", async (req,res) => {
@@ -404,4 +406,5 @@ async function mountTireRoutes(app, dbPool) {\n  pool = dbPool;
     catch(e){ res.status(400).json({success:false,error:e.message}); }
   });
 }
-\nmodule.exports = { mountTireRoutes };\n
+
+module.exports = { mountTireRoutes };
