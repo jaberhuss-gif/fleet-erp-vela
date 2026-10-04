@@ -21,6 +21,7 @@ import MyTickets from './pages/MyTickets';
 import FleetReports from './pages/FleetReports';
 import Login from './Login';
 import FleetHub from './pages/FleetHub';
+import TireManagement from './pages/TireManagement';
 
 
 function App() {
@@ -189,6 +190,7 @@ function App() {
               {(isMobile || sidebarOpen) && <div style={sectionTitleStyle}>FLEET MANAGEMENT</div>}
 
               <MenuItem label="Vehicles" icon="🚙" active={page === 'vehicles'} onClick={() => handleMenuClick('vehicles')} show={isMobile || sidebarOpen} />
+              <MenuItem label="Tire Control" icon="🛞" active={page === 'tiremanagement'} onClick={() => handleMenuClick('tiremanagement')} show={isMobile || sidebarOpen} />
               <MenuItem label="KM Records" icon="📊" active={page === 'kmrecords'} onClick={() => handleMenuClick('kmrecords')} show={isMobile || sidebarOpen} />
               <MenuItem label="Periodic Maintenance" icon="🔧" active={page === 'periodicmaintenance'} onClick={() => handleMenuClick('periodicmaintenance')} show={isMobile || sidebarOpen} />
               <MenuItem label="Inventory" icon="📦" active={page === 'inventory'} onClick={() => handleMenuClick('inventory')} show={isMobile || sidebarOpen} />
@@ -227,6 +229,7 @@ function App() {
             {page === 'devprojects' && <DevProjects />}
             {page === 'purchases' && <Purchases />}
             {page === 'vehicles' && <Vehicles />}
+            {page === 'tiremanagement' && <TireManagement user={user} />}
             {page === 'kmrecords' && <KMRecords />}
             {page === 'drivers' && <Drivers />}
             {page === 'oilchanges' && <OilChanges />}
