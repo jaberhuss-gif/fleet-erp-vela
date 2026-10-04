@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { mountTireRoutes } = require('./tire-management');
 require('dotenv').config();
 
 const app = express();
@@ -3202,6 +3203,11 @@ app.get('/api/periodic-maintenance/report', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================
+// TIRE MANAGEMENT
+// ============================================================
+mountTireRoutes(app, pool).catch(err => console.error('Tire routes/schema initialization failed:', err));
 
 // ============================================================
 // SERVE FRONTEND (React build)
