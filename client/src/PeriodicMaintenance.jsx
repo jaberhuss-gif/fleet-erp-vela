@@ -106,10 +106,21 @@ function PeriodicMaintenance() {
     '6_months_general': '6 Months General',
   }[t] || t);
 
-  const isInspected = (r) => (
-    (r.type === '6_months_general' || r.type === 'inspection') &&
-    (r.status === 'Completed' || Boolean(r.completed_date))
-  );
+  // 6-month maintenance: notes are valid evidence of an actual inspection,
+  // matching the old ERP behavior. Annual inspection requires completion/date.
+  const isInspected = (r) => {
+    if (!r) return false;
+    if (r.type === '6_months_general') {
+      return r.status === 'Completed' ||
+        Boolean(String(r.completed_date || '').trim()) ||
+        Boolean(String(r.notes || '').trim());
+    }
+    if (r.type === 'inspection') {
+      return r.status === 'Completed' ||
+        Boolean(String(r.completed_date || '').trim());
+    }
+    return false;
+  };
 
   const controlLabel = (type) => (
     type === '6_months_general' ? '6-Month Maintenance' :
