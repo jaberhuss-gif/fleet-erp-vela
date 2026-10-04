@@ -478,6 +478,233 @@ app.put('/api/buildings/dev-projects/:id/close', async (req, res) => {
   }
 });
 
+
+/* TEMPORARY VEHICLE SYNC: old Fleet ERP -> Vela (yesterday + today KM) */
+app.post('/api/fleet/vehicles/sync-from-old', async (req, res) => {
+  const https = require('https');
+  const http = require('http');
+  const oldUrl = String(process.env.OLD_ERP_URL || 'https://fleet-erp-kn0c.onrender.com').replace(/\/$/, '');
+  const token = String(process.env.MIGRATION_SYNC_TOKEN || '').trim();
+
+  if (!token) {
+    return res.status(500).json({ success: false, error: 'MIGRATION_SYNC_TOKEN is not configured on Vela' });
+  }
+
+  const fetchJson = (url) => new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const lib = target.protocol === 'https:' ? https : http;
+    const request = lib.get(url, {
+      headers: {
+        Accept: 'application/json',
+        'x-migration-token': token,
+      },
+    }, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => { body += chunk; });
+      response.on('end', () => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          return reject(new Error(`Old ERP returned HTTP ${response.statusCode}: ${body.slice(0, 300)}`));
+        }
+        try { resolve(JSON.parse(body)); }
+        catch (e) { reject(new Error('Old ERP returned invalid JSON')); }
+      });
+    });
+    request.on('error', reject);
+    request.setTimeout(30000, () => request.destroy(new Error('Old ERP request timed out')));
+  });
+
+  try {
+    const feed = await fetchJson(`${oldUrl}/api/migration/vehicles`);
+    if (!feed?.success || !Array.isArray(feed.vehicles) || !Array.isArray(feed.readings)) {
+      return res.status(502).json({ success: false, error: 'Invalid migration feed from old ERP' });
+    }
+
+    const result = {
+      success: true,
+      source: oldUrl,
+      from_date: feed.from_date,
+      to_date: feed.to_date,
+      vehicles_source: feed.vehicles.length,
+      vehicles_updated: 0,
+      vehicles_inserted: 0,
+      km_inserted: 0,
+      km_updated: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    const vehicleMap = new Map();
+
+    for (const source of feed.vehicles) {
+      const plateNumber = String(source.plate_number ?? '').trim();
+      const plateCode = String(source.plate_code ?? '').trim().toUpperCase();
+      if (!plateNumber) {
+        result.skipped++;
+        continue;
+      }
+
+      const existing = await pool.query(
+        `SELECT id
+         FROM vehicles
+         WHERE UPPER(TRIM(COALESCE(plate_number, ''))) = UPPER(TRIM($1))
+           AND UPPER(TRIM(COALESCE(plate_code, ''))) = UPPER(TRIM($2))
+         ORDER BY id
+         LIMIT 1`,
+        [plateNumber, plateCode]
+      );
+
+      let vehicleId;
+      if (existing.rows[0]) {
+        vehicleId = existing.rows[0].id;
+        await pool.query(
+          `UPDATE vehicles SET
+             plate_number = $1,
+             plate_code = $2,
+             plate = $3,
+             make = COALESCE($4, make),
+             model = COALESCE($5, model),
+             year = COALESCE($6, year),
+             location = COALESCE($7, location),
+             driver = COALESCE($8, driver),
+             driver_name = COALESCE($8, driver_name),
+             phone = COALESCE($9, phone),
+             driver_phone = COALESCE($9, driver_phone),
+             status = COALESCE($10, status),
+             updated_at = NOW()
+           WHERE id = $11`,
+          [
+            plateNumber,
+            plateCode,
+            `${plateNumber} ${plateCode}`.trim(),
+            source.make ?? null,
+            source.model ?? null,
+            source.year ?? null,
+            source.location ?? null,
+            source.driver ?? null,
+            source.phone ?? null,
+            source.status ?? null,
+            vehicleId
+          ]
+        );
+        result.vehicles_updated++;
+      } else {
+        const inserted = await pool.query(
+          `INSERT INTO vehicles
+             (plate_number, plate_code, plate, make, model, year, location,
+              driver, driver_name, phone, driver_phone, current_km, last_oil_km,
+              oil_change_interval, last_oil_change_date, status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$9,$10,$11,$12,$13,$14)
+           RETURNING id`,
+          [
+            plateNumber,
+            plateCode,
+            `${plateNumber} ${plateCode}`.trim(),
+            source.make ?? null,
+            source.model ?? null,
+            source.year ?? null,
+            source.location ?? null,
+            source.driver ?? null,
+            source.phone ?? null,
+            Number(source.current_km) || 0,
+            Number(source.last_oil_km) || 0,
+            Number(source.oil_change_interval) || 5000,
+            source.last_oil_change_date ?? null,
+            source.status ?? 'Active'
+          ]
+        );
+        vehicleId = inserted.rows[0].id;
+        result.vehicles_inserted++;
+      }
+
+      vehicleMap.set(`${plateNumber.toUpperCase()}|${plateCode}`, vehicleId);
+      vehicleMap.set(String(source.id), vehicleId);
+    }
+
+    for (const source of feed.readings) {
+      try {
+        const plate = String(source.plate || '').trim().split(/\s+/);
+        const plateNumber = String(source.plate_number || plate[0] || '').trim();
+        const plateCode = String(source.plate_code || plate.slice(1).join(' ') || '').trim().toUpperCase();
+        const vehicleId =
+          vehicleMap.get(`${plateNumber.toUpperCase()}|${plateCode}`) ||
+          vehicleMap.get(String(source.vehicle_id));
+
+        if (!vehicleId || !source.reading_date || source.reading_km == null) {
+          result.skipped++;
+          continue;
+        }
+
+        const readingDate = String(source.reading_date).slice(0, 10);
+        const km = Number(source.reading_km);
+        if (!Number.isFinite(km) || km <= 0) {
+          result.skipped++;
+          continue;
+        }
+
+        const existing = await pool.query(
+          `SELECT id
+           FROM km_records
+           WHERE vehicle_id = $1 AND reading_date = $2::date
+           ORDER BY id DESC
+           LIMIT 1`,
+          [vehicleId, readingDate]
+        );
+
+        if (existing.rows[0]) {
+          await pool.query(
+            `UPDATE km_records
+             SET plate = $1, reading_km = $2, is_oil_change = $3, notes = $4
+             WHERE id = $5`,
+            [
+              `${plateNumber} ${plateCode}`.trim(),
+              km,
+              source.is_oil_change ?? 0,
+              source.notes ?? null,
+              existing.rows[0].id
+            ]
+          );
+          result.km_updated++;
+        } else {
+          await pool.query(
+            `INSERT INTO km_records
+             (vehicle_id, plate, reading_km, reading_date, is_oil_change, notes, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,NOW())`,
+            [
+              vehicleId,
+              `${plateNumber} ${plateCode}`.trim(),
+              km,
+              readingDate,
+              source.is_oil_change ?? 0,
+              source.notes ?? null
+            ]
+          );
+          result.km_inserted++;
+        }
+
+        await pool.query(
+          `UPDATE vehicles
+           SET current_km = GREATEST(COALESCE(current_km, 0), $1),
+               updated_at = NOW()
+           WHERE id = $2`,
+          [km, vehicleId]
+        );
+      } catch (rowError) {
+        result.errors.push({
+          vehicle_id: source.vehicle_id ?? null,
+          reading_date: source.reading_date ?? null,
+          error: rowError.message
+        });
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Vehicle migration sync error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ========== لوحة التحكم ==========
 app.get('/api/buildings/dashboard', async (req, res) => {
   try {
