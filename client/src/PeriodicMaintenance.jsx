@@ -105,7 +105,19 @@ function PeriodicMaintenance() {
     '6_months_general': '6 Months General',
   }[t] || t);
 
-  const statusColor = (s) => s === 'Completed' ? '#28a745' : '#ffc107';
+  // A 6-month record with notes (or Completed) is proof that the inspection was performed.
+  // Notes can contain findings; they still count as inspected.
+  const isSixMonthInspected = (r) => r.type === '6_months_general' && (
+    r.status === 'Completed' || Boolean(String(r.notes || '').trim())
+  );
+
+  const statusInfo = (r) => {
+    if (isSixMonthInspected(r)) return { label: 'GREEN — Inspected', color: '#16a34a' };
+    if (r.type === '6_months_general') return { label: 'RED — Not Inspected', color: '#dc2626' };
+    return r.status === 'Completed'
+      ? { label: 'Completed', color: '#28a745' }
+      : { label: r.status || 'Pending', color: '#ffc107' };
+  };
 
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
   if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>;
@@ -113,7 +125,10 @@ function PeriodicMaintenance() {
   return (
     <div style={{ padding: 20, fontFamily: 'Arial' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <h1 style={{ margin: 0 }}>Periodic Maintenance ({records.length})</h1>
+        <div>
+          <h1 style={{ margin: 0 }}>Periodic Maintenance ({records.length})</h1>
+          <div style={{ marginTop: 8, fontSize: 13 }}><strong>6-Month Control:</strong> <span style={{color:'#15803d'}}>GREEN = inspected (notes or completed)</span> · <span style={{color:'#b91c1c'}}>RED = not inspected (no notes)</span></div>
+        </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
             <option value="">All Status</option>
@@ -187,8 +202,8 @@ function PeriodicMaintenance() {
                   <td style={tdStyle}>{r.scheduled_date ? new Date(r.scheduled_date).toLocaleDateString('en-US') : '-'}</td>
                   <td style={tdStyle}>{r.completed_date ? new Date(r.completed_date).toLocaleDateString('en-US') : '-'}</td>
                   <td style={tdStyle}>
-                    <span style={{ background: statusColor(r.status), color: 'white', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>
-                      {r.status}
+                    <span style={{ background: statusInfo(r).color, color: 'white', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>
+                      {statusInfo(r).label}
                     </span>
                   </td>
                   <td style={tdStyle}>{r.technician || '-'}</td>
