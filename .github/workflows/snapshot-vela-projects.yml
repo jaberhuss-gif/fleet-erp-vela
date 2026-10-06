@@ -1,0 +1,30 @@
+name: Snapshot Vela projects
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch live Vela projects
+        run: |
+          curl -fsSL https://fleet-erp-vela.onrender.com/api/buildings/dev-projects -o vela-projects-snapshot.json
+          python - <<'PY'
+          import json
+          p=json.load(open('vela-projects-snapshot.json'))
+          print('projects:', len(p))
+          for x in p:
+              print(x.get('id'), x.get('name'), x.get('total_cost'), x.get('start_date'))
+          PY
+      - name: Commit snapshot
+        run: |
+          git config user.name "vela-snapshot"
+          git config user.email "actions@users.noreply.github.com"
+          git add vela-projects-snapshot.json
+          git commit -m "Snapshot live Vela project amounts" || exit 0
+          git push
