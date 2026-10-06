@@ -1,6 +1,9 @@
 name: Snapshot Vela projects
 
 on:
+  push:
+    paths-ignore:
+      - vela-projects-snapshot.json
   workflow_dispatch:
 
 permissions:
